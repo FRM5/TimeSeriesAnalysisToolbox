@@ -1,0 +1,266 @@
+library(xts) #library for working with time series
+library(highfrequency) #library for handling irregular TS
+library(matrixStats) #library for advanced working with matrix
+library(ggplot2) #library for advanced plotting
+library(lubridate)
+
+mydata = read.table("19.txt", row.names=NULL)
+colnames(mydata)[1]= "Date"
+colnames(mydata)[2]= "Time"
+mydata$DateTime <- as.POSIXct(paste(mydata$Date, mydata$Time), format="%m/%d/%Y %H:%M", tz = "UTC")
+mydata$Date <- NULL
+mydata$Time <- NULL
+mydata$Depth <- 0.1
+#above is my own code for calculating cumulative yearly depth. Value is stored
+#in the last cell corresponding to the year
+
+# mydata$y1994 <- NA
+# cumd = 0
+# for (i in 1:nrow(mydata)) {
+#   if (i == nrow(mydata)) {
+#     mydata$y1994[i] <- mydata$y1994[i - 1] + 0.1
+#   } else if (year(mydata$DateTime[i]) == (year(mydata$DateTime[i+1]))) {
+#     cumd = cumd + 0.1
+#     mydata$y1994[i] <- cumd
+#   } else {
+#     mydata$y1994[i] <- cumd + 0.1
+#     cumd = 0
+#     next
+#   }
+# }
+
+#creation of TS from data.frame
+myTS <- xts(mydata[,-1], order.by=mydata[,1])
+
+#calculation of cumulative depth for each duration
+`15 minutes` <- aggregatets(myTS, FUN = "sum", on="minutes", k=15, weights=NULL, dropna=TRUE)
+`30 minutes` <- aggregatets(myTS, FUN = "sum", on="minutes", k=30, weights=NULL, dropna=TRUE)
+`45 minutes` <- aggregatets(myTS, FUN = "sum", on="minutes", k=45, weights=NULL, dropna=TRUE)
+`1 hour` <- aggregatets(myTS, FUN = "sum", on="hours", k=1, weights=NULL, dropna=TRUE)
+`2 hours` <- aggregatets(myTS, FUN = "sum", on="hours", k=2, weights=NULL, dropna=TRUE)
+`6 hours` <- aggregatets(myTS, FUN = "sum", on="hours", k=6, weights=NULL, dropna=TRUE)
+`12 hours` <- aggregatets(myTS, FUN = "sum", on="hours", k=12, weights=NULL, dropna=TRUE)
+`24 hours` <- aggregatets(myTS, FUN = "sum", on="hours", k=24, weights=NULL, dropna=TRUE)
+
+#creation of data.tables with annual maximum value for depth for each period
+`15 minutes` <- data.frame(date=index(`15 minutes`), coredata(`15 minutes`))
+names(`15 minutes`) = c("DateTime", "Depth")
+`15 minutes` <- aggregate( `15 minutes`$Depth ~ year(`15 minutes`$DateTime), FUN = max)
+MaxDuration <- `15 minutes`
+names(MaxDuration) = c("Year", "15min")
+
+`30 minutes` <- data.frame(date=index(`30 minutes`), coredata(`30 minutes`))
+names(`30 minutes`) = c("DateTime", "Depth")
+`30 minutes` <- aggregate( `30 minutes`$Depth ~ year(`30 minutes`$DateTime), FUN = max)
+names(`30 minutes`) = c("DateTime", "Depth")
+MaxDuration$`30min` <- `30 minutes`$Depth
+
+`45 minutes` <- data.frame(date=index(`45 minutes`), coredata(`45 minutes`))
+names(`45 minutes`) = c("DateTime", "Depth")
+`45 minutes` <- aggregate( `45 minutes`$Depth ~ year(`45 minutes`$DateTime), FUN = max)
+names(`45 minutes`) = c("DateTime", "Depth")
+MaxDuration$`45min` <- `45 minutes`$Depth
+
+`1 hour` <- data.frame(date=index(`1 hour`), coredata(`1 hour`))
+names(`1 hour`) = c("DateTime", "Depth")
+`1 hour` <- aggregate( `1 hour`$Depth ~ year(`1 hour`$DateTime), FUN = max)
+names(`1 hour`) = c("DateTime", "Depth")
+MaxDuration$`1hr` <- `1 hour`$Depth
+
+`2 hours` <- data.frame(date=index(`2 hours`), coredata(`2 hours`))
+names(`2 hours`) = c("DateTime", "Depth")
+`2 hours` <- aggregate( `2 hours`$Depth ~ year(`2 hours`$DateTime), FUN = max)
+names(`2 hours`) = c("DateTime", "Depth")
+MaxDuration$`2hr` <- `2 hours`$Depth
+
+`6 hours` <- data.frame(date=index(`6 hours`), coredata(`6 hours`))
+names(`6 hours`) = c("DateTime", "Depth")
+`6 hours` <- aggregate( `6 hours`$Depth ~ year(`6 hours`$DateTime), FUN = max)
+names(`6 hours`) = c("DateTime", "Depth")
+MaxDuration$`6hr` <- `6 hours`$Depth
+
+`12 hours` <- data.frame(date=index(`12 hours`), coredata(`12 hours`))
+names(`12 hours`) = c("DateTime", "Depth")
+`12 hours` <- aggregate( `12 hours`$Depth ~ year(`12 hours`$DateTime), FUN = max)
+names(`12 hours`) = c("DateTime", "Depth")
+MaxDuration$`12hr` <- `12 hours`$Depth
+
+`24 hours` <- data.frame(date=index(`24 hours`), coredata(`24 hours`))
+names(`24 hours`) = c("DateTime", "Depth")
+`24 hours` <- aggregate( `24 hours`$Depth ~ year(`24 hours`$DateTime), FUN = max)
+names(`24 hours`) = c("DateTime", "Depth")
+MaxDuration$`24hr` <- `24 hours`$Depth
+
+rm(`15 minutes`)
+rm(`30 minutes`)
+rm(`45 minutes`)
+rm(`1 hour`)
+rm(`2 hours`)
+rm(`6 hours`)
+rm(`12 hours`)
+rm(`24 hours`)
+
+#generation of max intensity table
+MaxIntensity <- MaxDuration
+MaxIntensity$`15min` <- MaxIntensity$`15min` / 0.25
+MaxIntensity$`30min` <- MaxIntensity$`30min` / 0.5
+MaxIntensity$`45min` <- MaxIntensity$`45min` / 0.75
+MaxIntensity$`2hr` <- MaxIntensity$`2hr` / 2
+MaxIntensity$`6hr` <- MaxIntensity$`6hr` / 6
+MaxIntensity$`12hr` <- MaxIntensity$`12hr` / 12
+MaxIntensity$`24hr` <- MaxIntensity$`24hr` / 24
+
+#automatic calculation of MEAN values by column
+statdata <- colMeans(MaxIntensity[,-1], na.rm = FALSE, dims = 1)
+statdata <- data.frame(t(statdata))
+names(statdata) = c("15min", "30min", "45min", "1hr", "2hr", "6hr", "12hr", "24hr")
+
+#filling statistical data with STD values
+statdata[2,1] <- sd(MaxIntensity$`15min`)
+statdata[2,2] <- sd(MaxIntensity$`30min`)
+statdata[2,3] <- sd(MaxIntensity$`45min`)
+statdata[2,4] <- sd(MaxIntensity$`1hr`)
+statdata[2,5] <- sd(MaxIntensity$`2hr`)
+statdata[2,6] <- sd(MaxIntensity$`6hr`)
+statdata[2,7] <- sd(MaxIntensity$`12hr`)
+statdata[2,8] <- sd(MaxIntensity$`24hr`)
+
+#gumbel's distribution values
+gumbel <- matrix(c(2,-0.164,5,0.719,10,1.305,50,2.592,100,3.137), nrow = 2, ncol = 5)
+options(digits=3)
+gumbel <- as.data.frame(gumbel)
+names(gumbel) = c("2", "5", "10", "50", "100")
+
+#final table with intensities and durations
+intdur <- matrix(data = NA, nrow = 8, ncol = 5)
+intdur[1,1] = statdata[1,1] + gumbel[2,1] * statdata[2,1]
+intdur[2,1] = statdata[1,2] + gumbel[2,1] * statdata[2,2]
+intdur[3,1] = statdata[1,3] + gumbel[2,1] * statdata[2,3]
+intdur[4,1] = statdata[1,4] + gumbel[2,1] * statdata[2,4]
+intdur[5,1] = statdata[1,5] + gumbel[2,1] * statdata[2,5]
+intdur[6,1] = statdata[1,6] + gumbel[2,1] * statdata[2,6]
+intdur[7,1] = statdata[1,7] + gumbel[2,1] * statdata[2,7]
+intdur[8,1] = statdata[1,8] + gumbel[2,1] * statdata[2,8]
+
+intdur[1,2] = statdata[1,1] + gumbel[2,2] * statdata[2,1]
+intdur[2,2] = statdata[1,2] + gumbel[2,2] * statdata[2,2]
+intdur[3,2] = statdata[1,3] + gumbel[2,2] * statdata[2,3]
+intdur[4,2] = statdata[1,4] + gumbel[2,2] * statdata[2,4]
+intdur[5,2] = statdata[1,5] + gumbel[2,2] * statdata[2,5]
+intdur[6,2] = statdata[1,6] + gumbel[2,2] * statdata[2,6]
+intdur[7,2] = statdata[1,7] + gumbel[2,2] * statdata[2,7]
+intdur[8,2] = statdata[1,8] + gumbel[2,2] * statdata[2,8]
+
+intdur[1,3] = statdata[1,1] + gumbel[2,3] * statdata[2,1]
+intdur[2,3] = statdata[1,2] + gumbel[2,3] * statdata[2,2]
+intdur[3,3] = statdata[1,3] + gumbel[2,3] * statdata[2,3]
+intdur[4,3] = statdata[1,4] + gumbel[2,3] * statdata[2,4]
+intdur[5,3] = statdata[1,5] + gumbel[2,3] * statdata[2,5]
+intdur[6,3] = statdata[1,6] + gumbel[2,3] * statdata[2,6]
+intdur[7,3] = statdata[1,7] + gumbel[2,3] * statdata[2,7]
+intdur[8,3] = statdata[1,8] + gumbel[2,3] * statdata[2,8]
+
+intdur[1,4] = statdata[1,1] + gumbel[2,4] * statdata[2,1]
+intdur[2,4] = statdata[1,2] + gumbel[2,4] * statdata[2,2]
+intdur[3,4] = statdata[1,3] + gumbel[2,4] * statdata[2,3]
+intdur[4,4] = statdata[1,4] + gumbel[2,4] * statdata[2,4]
+intdur[5,4] = statdata[1,5] + gumbel[2,4] * statdata[2,5]
+intdur[6,4] = statdata[1,6] + gumbel[2,4] * statdata[2,6]
+intdur[7,4] = statdata[1,7] + gumbel[2,4] * statdata[2,7]
+intdur[8,4] = statdata[1,8] + gumbel[2,4] * statdata[2,8]
+
+intdur[1,5] = statdata[1,1] + gumbel[2,5] * statdata[2,1]
+intdur[2,5] = statdata[1,2] + gumbel[2,5] * statdata[2,2]
+intdur[3,5] = statdata[1,3] + gumbel[2,5] * statdata[2,3]
+intdur[4,5] = statdata[1,4] + gumbel[2,5] * statdata[2,4]
+intdur[5,5] = statdata[1,5] + gumbel[2,5] * statdata[2,5]
+intdur[6,5] = statdata[1,6] + gumbel[2,5] * statdata[2,6]
+intdur[7,5] = statdata[1,7] + gumbel[2,5] * statdata[2,7]
+intdur[8,5] = statdata[1,8] + gumbel[2,5] * statdata[2,8]
+
+intdur <- as.data.frame(intdur)
+names(intdur) = c("2", "5", "10", "50", "100")
+
+#creation of table, that will be used after for plotting IDF curves
+dataplot <- matrix(data = NA, nrow = 8, ncol = 1)
+dataplot[1,1] = 0.25
+dataplot[2,1] = 0.5
+dataplot[3,1] = 0.75
+dataplot[4,1] = 1
+dataplot[5,1] = 2
+dataplot[6,1] = 6
+dataplot[7,1] = 12
+dataplot[8,1] = 24
+dataplot <- as.data.frame(dataplot)
+dataplot$`2yr` <- intdur$`2`
+dataplot$`5yr` <- intdur$`5`
+dataplot$`10yr` <- intdur$`10`
+dataplot$`50yr` <- intdur$`50`
+dataplot$`100yr` <- intdur$`100`
+colnames(dataplot)[1] = "dur"
+
+#Plotiing the graph. Position of legeng determined by perfect position for exporting plot in
+#resolution 1500x500
+idfgraph <- 
+  ggplot(dataplot, aes(dur)) + 
+  geom_line(aes(y = `2yr`, colour = "2 years",), size = 1) + 
+  geom_point(aes(y = `2yr`, colour = "2 years"), size = 1.5) + 
+  geom_line(aes(y = `5yr`, colour = "5 years"), size = 1) + 
+  geom_point(aes(y = `5yr`, colour = "5 years"), size = 1.5) + 
+  geom_line(aes(y = `10yr`, colour = "10 years"), size = 1) + 
+  geom_point(aes(y = `10yr`, colour = "10 years"), size = 1.5) + 
+  geom_line(aes(y = `50yr`, colour = "50 years"), size = 1) + 
+  geom_point(aes(y = `50yr`, colour = "50 years"), size = 1.5) + 
+  geom_line(aes(y = `100yr`, colour = "100 years"), size = 1) + 
+  geom_point(aes(y = `100yr`, colour = "100 years"), size = 1.5) +
+  ylab("Intensity, mm/hour") +
+  xlab("Duration, hours") +
+  labs(title = "Intensity-Duration-Frequency curves") +
+  theme(panel.background = element_rect(fill = "white smoke")) +
+  theme(panel.grid.major = element_line(colour = "black", linetype = "dotted")) +
+  theme(panel.grid.minor = element_line(colour = "white smoke", linetype = "dotted")) +
+  theme(legend.background = element_rect(fill="white", size=0.5, 
+                                         linetype="solid", colour ="darkblue")) +
+  labs(color = "Return Periods, years:") + 
+  theme(legend.position = c(.92, .8))
+
+answerplot <- readline(prompt="Do you want to plot current IDF graph? (type Y for yes and N for n) :")
+if (answerplot == "Y"){
+  plot(idfgraph) 
+}else{
+  print("Bringing you to intensity calculation for given return period and rainfall duration")
+}
+
+answercalc <- readline(prompt="Do you want to calculate intensity for different return period and duration? (type Y for yes and N for n) :")
+if (answercalc == "Y"){
+  rt <- readline(prompt="Enter return period (years): ")
+  dur <- readline(prompt="Enter duration (minutes): ")
+  
+  rt <- as.numeric(rt)
+  dur <- as.numeric(dur)
+  
+  freqf <- (-sqrt(6) / pi) * ((0.5772 + log((log(rt / (rt - 1))), base = exp(1))))
+  
+  usrdur <- aggregatets(myTS, FUN = "sum", on="minutes", k=dur, weights=NULL, dropna=TRUE)
+  usrdur <- data.frame(date=index(usrdur), coredata(usrdur))
+  colnames(usrdur)[1]= "DateTime"
+  colnames(usrdur)[2]= "Depth"
+  usrdur <- aggregate( usrdur$Depth ~ year(usrdur$DateTime), FUN = max)
+  MaxUsrDur <- usrdur
+  colnames(MaxUsrDur)[1] = "Year"
+  colnames(MaxUsrDur)[2] = "Dur"
+  
+  b = dur / 60
+  MaxUsrInt <- MaxUsrDur / b
+  MaxUsrInt$Year <- NULL
+  mean(MaxUsrInt$Dur)
+  sd(MaxUsrInt$Dur)
+  
+  xt <- mean(MaxUsrInt$Dur) + sd(MaxUsrInt$Dur) * freqf
+  xt <- round(xt, digits = 2)
+  print(paste0("Intensity (mm/hour) for return period (years) T = "
+               , rt, ", and duration d = ", dur, " minutes is: Xt = ", xt, " mm/hr"))
+  print("Program finished executing, please re-run the program")
+}else{
+  print("Program finished executing, please re-run the program")
+}
