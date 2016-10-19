@@ -1,0 +1,258 @@
+options(repos='http://cran.rstudio.com/')
+# install.packages("zoo")
+# install.packages("xts")
+# install.packages("highfrequency")
+# install.packages("lubridate")
+# install.packages("ggplot2")
+library(zoo) # timeseries
+library(xts) # timeseries
+library(highfrequency) # timeseries
+library(lubridate)
+library(ggplot2) # plotting
+
+setwd("D:/OneDrive/FlashFloods/Assignment") # Setting the working directory
+
+MyData = read.table("9.txt", header = TRUE) # Read the txt file
+
+# Editing the file and convert the columes to proper format 
+colnames(MyData)[1] = "Date"
+colnames(MyData)[2] = "Time"
+MyData["Date_Time"] <- as.POSIXct(paste(MyData$Date, MyData$Time), format="%m/%d/%Y %H:%M:%S", tz = "UTC") # Problem with the Time Zone
+MyData["Depth"] <- 0.1
+MyData$Date <- NULL
+MyData$Time <- NULL
+
+ts <- xts(MyData$Depth, order.by = MyData$Date_Time, tzone = "UTC") # Create timeseries, problem with the Time Zone
+
+# Create cummulative time series for various time steps from 5 minutes to 48 hours
+Min5 <- aggregatets(ts, FUN = "sum", on = "minutes", k = 5, weights = NULL, dropna = TRUE)
+Min15 <- aggregatets(ts, FUN = "sum", on = "minutes", k = 15, weights = NULL, dropna = TRUE)
+Min30 <- aggregatets(ts, FUN = "sum", on = "minutes", k = 30, weights = NULL, dropna = TRUE)
+Hour1 <- aggregatets(ts, FUN = "sum", on = "hours", k = 1, weights = NULL, dropna = TRUE)
+Hour2 <- aggregatets(ts, FUN = "sum", on = "hours", k = 2, weights = NULL, dropna = TRUE)
+Hour6 <- aggregatets(ts, FUN = "sum", on = "hours", k = 6, weights = NULL, dropna = TRUE)
+Hour12 <- aggregatets(ts, FUN = "sum", on = "hours", k = 12, weights = NULL, dropna = TRUE)
+Hour24 <- aggregatets(ts, FUN = "sum", on = "hours", k = 24, weights = NULL, dropna = TRUE)
+Hour48 <- aggregatets(ts, FUN = "sum", on = "hours", k = 48, weights = NULL, dropna = TRUE)
+# Hou72 <- aggregatets(ts, FUN = "sum", on = "hours", k = 72, weights = NULL, dropna = TRUE) # Was giving wrong data, eg Depth72<Depth48 for some years
+
+# Find the annual maxima for each time intervals from 5 minutes to 48 hours
+MaxMin5 <- apply.yearly(Min5, FUN = "max")
+MaxMin15 <- apply.yearly(Min15, FUN = "max")
+MaxMin30 <- apply.yearly(Min30, FUN = "max")
+MaxHour1 <- apply.yearly(Hour1, FUN = "max")
+MaxHour2 <- apply.yearly(Hour2, FUN = "max")
+MaxHour6 <- apply.yearly(Hour6, FUN = "max")
+MaxHour12 <- apply.yearly(Hour12, FUN = "max")
+MaxHour24 <- apply.yearly(Hour24, FUN = "max")
+MaxHour48 <- apply.yearly(Hour48, FUN = "max")
+# MaxHour72 <- apply.yearly(Hour72, FUN = "max") # Was giving wrong data, eg Depth72<Depth48 for some years
+
+
+# Convert the annual maxima for each time intervals from 5 minutes to 48 hours to data frames
+MaxMin5 <- as.data.frame(MaxMin5)
+MaxMin15 <- as.data.frame(MaxMin15)
+MaxMin30 <- as.data.frame(MaxMin30)
+MaxHour1 <- as.data.frame(MaxHour1)
+MaxHour2 <- as.data.frame(MaxHour2)
+MaxHour6 <- as.data.frame(MaxHour6)
+MaxHour12 <- as.data.frame(MaxHour12)
+MaxHour24 <- as.data.frame(MaxHour24)
+MaxHour48 <- as.data.frame(MaxHour48)
+# MaxHour72 <- as.data.frame(MaxHour72) # Was giving wrong data, eg Depth72<Depth48 for some years
+
+rownames(MaxMin5) <- NULL
+rownames(MaxMin15) <- NULL
+rownames(MaxMin30) <- NULL
+rownames(MaxHour1) <- NULL
+rownames(MaxHour2) <- NULL
+rownames(MaxHour6) <- NULL
+rownames(MaxHour12) <- NULL
+rownames(MaxHour24) <- NULL
+rownames(MaxHour48) <- NULL
+
+# Create a Table with the maxima for each time interval
+Maxima <- aggregate( MyData$Depth ~ year(MyData$Date_Time), FUN = max)
+Maxima$`MyData$Depth` <- NULL
+colnames(Maxima)[1] = "Year"
+Maxima <- data.frame(Maxima, MaxMin5*12, MaxMin15*4, MaxMin30*2, MaxHour1, MaxHour2/2, MaxHour6/6, MaxHour12/12, MaxHour24/24, MaxHour48/48)
+colnames(Maxima)[2] <- "5Min"
+colnames(Maxima)[3] <- "15Min"
+colnames(Maxima)[4] <- "30Min"
+colnames(Maxima)[5] <- "1Hour"
+colnames(Maxima)[6] <- "2Hour"
+colnames(Maxima)[7] <- "6Hour"
+colnames(Maxima)[8] <- "12Hour"
+colnames(Maxima)[9] <- "24Hour"
+colnames(Maxima)[10] <- "48Hour"
+
+# Removing unnecessary data
+rm(MaxMin5)
+rm(MaxMin15)
+rm(MaxMin30)
+rm(MaxHour1)
+rm(MaxHour2)
+rm(MaxHour6)
+rm(MaxHour12)
+rm(MaxHour24)
+rm(MaxHour48)
+rm(Min5)
+rm(Min15)
+rm(Min30)
+rm(Hour1)
+rm(Hour2)
+rm(Hour6)
+rm(Hour12)
+rm(Hour24)
+rm(Hour48)
+
+# Statistical Analysis
+StatAnal <- colMeans(Maxima[,-1], na.rm = FALSE, dims = 1)
+StatAnal <- data.frame(t(StatAnal))
+StatAnal[2,1] <- sd(Maxima$`5Min`)
+StatAnal[2,2] <- sd(Maxima$`15Min`)
+StatAnal[2,3] <- sd(Maxima$`30Min`)
+StatAnal[2,4] <- sd(Maxima$`1Hour`)
+StatAnal[2,5] <- sd(Maxima$`2Hour`)
+StatAnal[2,6] <- sd(Maxima$`6Hour`)
+StatAnal[2,7] <- sd(Maxima$`12Hour`)
+StatAnal[2,8] <- sd(Maxima$`24Hour`)
+StatAnal[2,9] <- sd(Maxima$`48Hour`)
+
+# Name changes
+colnames(StatAnal)[1] <- "5Min"
+colnames(StatAnal)[2] <- "15Min"
+colnames(StatAnal)[3] <- "30Min"
+colnames(StatAnal)[4] <- "1Hour"
+colnames(StatAnal)[5] <- "2Hour"
+colnames(StatAnal)[6] <- "6Hour"
+colnames(StatAnal)[7] <- "12Hour"
+colnames(StatAnal)[8] <- "24Hour"
+colnames(StatAnal)[9] <- "48Hour"
+
+StatAnal[3,1] <- StatAnal[2,1]*sqrt(6)/pi
+StatAnal[3,2] <- StatAnal[2,2]*sqrt(6)/pi
+StatAnal[3,3] <- StatAnal[2,3]*sqrt(6)/pi
+StatAnal[3,4] <- StatAnal[2,4]*sqrt(6)/pi
+StatAnal[3,5] <- StatAnal[2,5]*sqrt(6)/pi
+StatAnal[3,6] <- StatAnal[2,6]*sqrt(6)/pi
+StatAnal[3,7] <- StatAnal[2,7]*sqrt(6)/pi
+StatAnal[3,8] <- StatAnal[2,8]*sqrt(6)/pi
+StatAnal[3,9] <- StatAnal[2,9]*sqrt(6)/pi
+
+StatAnal[4,1] <- StatAnal[1,1]-0.5772*StatAnal[3,1]
+StatAnal[4,2] <- StatAnal[1,2]-0.5772*StatAnal[3,2]
+StatAnal[4,3] <- StatAnal[1,3]-0.5772*StatAnal[3,3]
+StatAnal[4,4] <- StatAnal[1,4]-0.5772*StatAnal[3,4]
+StatAnal[4,5] <- StatAnal[1,5]-0.5772*StatAnal[3,5]
+StatAnal[4,6] <- StatAnal[1,6]-0.5772*StatAnal[3,6]
+StatAnal[4,7] <- StatAnal[1,7]-0.5772*StatAnal[3,7]
+StatAnal[4,8] <- StatAnal[1,8]-0.5772*StatAnal[3,8]
+StatAnal[4,9] <- StatAnal[1,9]-0.5772*StatAnal[3,9]
+
+# IDF Matrix with Return Periods of 2, 5, 20, 50, 100, 200 and 500 years
+IDF <- matrix(data = NA, nrow = 9, ncol = 7)
+IDF[1,1] = -log(-log(1-1/2))*StatAnal[3,1]+StatAnal[4,1]
+IDF[1,2] = -log(-log(1-1/5))*StatAnal[3,1]+StatAnal[4,1]
+IDF[1,3] = -log(-log(1-1/20))*StatAnal[3,1]+StatAnal[4,1]
+IDF[1,4] = -log(-log(1-1/50))*StatAnal[3,1]+StatAnal[4,1]
+IDF[1,5] = -log(-log(1-1/100))*StatAnal[3,1]+StatAnal[4,1]
+IDF[1,6] = -log(-log(1-1/200))*StatAnal[3,1]+StatAnal[4,1]
+IDF[1,7] = -log(-log(1-1/500))*StatAnal[3,1]+StatAnal[4,1]
+
+IDF[2,1] = -log(-log(1-1/2))*StatAnal[3,2]+StatAnal[4,2]
+IDF[2,2] = -log(-log(1-1/5))*StatAnal[3,2]+StatAnal[4,2]
+IDF[2,3] = -log(-log(1-1/20))*StatAnal[3,2]+StatAnal[4,2]
+IDF[2,4] = -log(-log(1-1/50))*StatAnal[3,2]+StatAnal[4,2]
+IDF[2,5] = -log(-log(1-1/100))*StatAnal[3,2]+StatAnal[4,2]
+IDF[2,6] = -log(-log(1-1/200))*StatAnal[3,2]+StatAnal[4,2]
+IDF[2,7] = -log(-log(1-1/500))*StatAnal[3,2]+StatAnal[4,2]
+
+IDF[3,1] = -log(-log(1-1/2))*StatAnal[3,3]+StatAnal[4,3]
+IDF[3,2] = -log(-log(1-1/5))*StatAnal[3,3]+StatAnal[4,3]
+IDF[3,3] = -log(-log(1-1/20))*StatAnal[3,3]+StatAnal[4,3]
+IDF[3,4] = -log(-log(1-1/50))*StatAnal[3,3]+StatAnal[4,3]
+IDF[3,5] = -log(-log(1-1/100))*StatAnal[3,3]+StatAnal[4,3]
+IDF[3,6] = -log(-log(1-1/200))*StatAnal[3,3]+StatAnal[4,3]
+IDF[3,7] = -log(-log(1-1/500))*StatAnal[3,3]+StatAnal[4,3]
+
+IDF[4,1] = -log(-log(1-1/2))*StatAnal[3,4]+StatAnal[4,4]
+IDF[4,2] = -log(-log(1-1/5))*StatAnal[3,4]+StatAnal[4,4]
+IDF[4,3] = -log(-log(1-1/20))*StatAnal[3,4]+StatAnal[4,4]
+IDF[4,4] = -log(-log(1-1/50))*StatAnal[3,4]+StatAnal[4,4]
+IDF[4,5] = -log(-log(1-1/100))*StatAnal[3,4]+StatAnal[4,4]
+IDF[4,6] = -log(-log(1-1/200))*StatAnal[3,4]+StatAnal[4,4]
+IDF[4,7] = -log(-log(1-1/500))*StatAnal[3,4]+StatAnal[4,4]
+
+IDF[5,1] = -log(-log(1-1/2))*StatAnal[3,5]+StatAnal[4,5]
+IDF[5,2] = -log(-log(1-1/5))*StatAnal[3,5]+StatAnal[4,5]
+IDF[5,3] = -log(-log(1-1/20))*StatAnal[3,5]+StatAnal[4,5]
+IDF[5,4] = -log(-log(1-1/50))*StatAnal[3,5]+StatAnal[4,5]
+IDF[5,5] = -log(-log(1-1/100))*StatAnal[3,5]+StatAnal[4,5]
+IDF[5,6] = -log(-log(1-1/200))*StatAnal[3,5]+StatAnal[4,5]
+IDF[5,7] = -log(-log(1-1/500))*StatAnal[3,5]+StatAnal[4,5]
+
+IDF[6,1] = -log(-log(1-1/2))*StatAnal[3,6]+StatAnal[4,6]
+IDF[6,2] = -log(-log(1-1/5))*StatAnal[3,6]+StatAnal[4,6]
+IDF[6,3] = -log(-log(1-1/20))*StatAnal[3,6]+StatAnal[4,6]
+IDF[6,4] = -log(-log(1-1/50))*StatAnal[3,6]+StatAnal[4,6]
+IDF[6,5] = -log(-log(1-1/100))*StatAnal[3,6]+StatAnal[4,6]
+IDF[6,6] = -log(-log(1-1/200))*StatAnal[3,6]+StatAnal[4,6]
+IDF[6,7] = -log(-log(1-1/500))*StatAnal[3,6]+StatAnal[4,6]
+
+IDF[7,1] = -log(-log(1-1/2))*StatAnal[3,7]+StatAnal[4,7]
+IDF[7,2] = -log(-log(1-1/5))*StatAnal[3,7]+StatAnal[4,7]
+IDF[7,3] = -log(-log(1-1/20))*StatAnal[3,7]+StatAnal[4,7]
+IDF[7,4] = -log(-log(1-1/50))*StatAnal[3,7]+StatAnal[4,7]
+IDF[7,5] = -log(-log(1-1/100))*StatAnal[3,7]+StatAnal[4,7]
+IDF[7,6] = -log(-log(1-1/200))*StatAnal[3,7]+StatAnal[4,7]
+IDF[7,7] = -log(-log(1-1/500))*StatAnal[3,7]+StatAnal[4,7]
+
+IDF[8,1] = -log(-log(1-1/2))*StatAnal[3,8]+StatAnal[4,8]
+IDF[8,2] = -log(-log(1-1/5))*StatAnal[3,8]+StatAnal[4,8]
+IDF[8,3] = -log(-log(1-1/20))*StatAnal[3,8]+StatAnal[4,8]
+IDF[8,4] = -log(-log(1-1/50))*StatAnal[3,8]+StatAnal[4,8]
+IDF[8,5] = -log(-log(1-1/100))*StatAnal[3,8]+StatAnal[4,8]
+IDF[8,6] = -log(-log(1-1/200))*StatAnal[3,8]+StatAnal[4,8]
+IDF[8,7] = -log(-log(1-1/500))*StatAnal[3,8]+StatAnal[4,8]
+
+IDF[9,1] = -log(-log(1-1/2))*StatAnal[3,9]+StatAnal[4,9]
+IDF[9,2] = -log(-log(1-1/5))*StatAnal[3,9]+StatAnal[4,9]
+IDF[9,3] = -log(-log(1-1/20))*StatAnal[3,9]+StatAnal[4,9]
+IDF[9,4] = -log(-log(1-1/50))*StatAnal[3,9]+StatAnal[4,9]
+IDF[9,5] = -log(-log(1-1/100))*StatAnal[3,9]+StatAnal[4,9]
+IDF[9,6] = -log(-log(1-1/200))*StatAnal[3,9]+StatAnal[4,9]
+IDF[9,7] = -log(-log(1-1/500))*StatAnal[3,9]+StatAnal[4,9]
+
+IDF <- data.frame(IDF)
+colnames(IDF)[1] ="T2"
+colnames(IDF)[2] ="T5"
+colnames(IDF)[3] ="T20"
+colnames(IDF)[4] ="T50"
+colnames(IDF)[5] ="T100"
+colnames(IDF)[6] ="T200"
+colnames(IDF)[7] ="T500"
+
+# creation of table, that will be used after for plotting IDF curves
+IDF$Duration <- c(1/12, .25, 0.5, 1, 2, 6, 12, 24, 48)
+IDF <- IDF[,c(8, 1:7)]
+
+#Plotiing the graph. Position of legeng determined by perfect position for exporting plot in
+#resolution 1500x500
+IDF_graph <- 
+  ggplot(IDF, aes(Duration)) + 
+  geom_line(aes(y = T2, colour = "T2",), size = 1) + geom_point(aes(y = T2, colour = "T2"), size = 1.5) + 
+  geom_line(aes(y = T5, colour = "T5"), size = 1) + geom_point(aes(y = T5, colour = "T5"), size = 1.5) + 
+  geom_line(aes(y = T20, colour = "T20"), size = 1) + geom_point(aes(y = T20, colour = "T20"), size = 1.5) + 
+  geom_line(aes(y = T50, colour = "T50"), size = 1) + geom_point(aes(y = T50, colour = "T50"), size = 1.5) + 
+  geom_line(aes(y = T100, colour = "T100"), size = 1) + geom_point(aes(y = T100, colour = "T100"), size = 1.5) +
+  geom_line(aes(y = T200, colour = "T200"), size = 1) + geom_point(aes(y = T200, colour = "T200"), size = 1.5) +
+  geom_line(aes(y = T500, colour = "T500"), size = 1) + geom_point(aes(y = T500, colour = "T500"), size = 1.5) +
+  ylab("Intensity [mm/hr]") + xlab("Duration [hr]") + labs(title = "IDF") + 
+  theme(panel.background = element_rect(fill = "white smoke")) +
+  theme(panel.grid.major = element_line(colour = "black", linetype = "dotted")) +
+  theme(panel.grid.minor = element_line(colour = "white smoke", linetype = "dotted")) +
+  theme(legend.background = element_rect(fill="white", size=0.5, linetype="solid", colour ="darkblue")) +
+  labs(color = "Return Periods") + theme(legend.position = c(.92, .8))
+
+plot(IDF_graph)
