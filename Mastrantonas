@@ -13,7 +13,7 @@ library(ggplot2) # plotting
 setwd("D:/OneDrive/FlashFloods/Assignment") # Setting the working directory
 
 MyData = read.table("9.txt", header = TRUE) # Read the txt file
-# General Comments:
+# General Comment:
 # For the apply.yearly, I don't know how it calculates the max annual depth. With the rollapply function the sum for various time windows
 # is calculated. But how can we be sure that the maximum of one year, will not contain values from next/previous year as well, if the maximum 
 # precipitation is end of December etc? On the other hand if it is taken into consideration, why why split a rainfall event beased on year/month
@@ -42,7 +42,7 @@ z.f[1] <- NULL
 z.f[1] <- NULL
 ts_final <- xts(z.f$Depth, order.by = z.f$Date_Time, tzone = "UTC")
 
-# Create cummulative time series for various time windows from 5 minutes to 48 hours and findind the annual maximum
+# Create cummulative time series for various time intervals from 5 minutes to 48 hours and findind the annual maximum for each of them
 Min5 <- rollapply(ts_final, 5, sum, na.rm = TRUE, align = c("center"))
 Min5[is.na(Min5)] <- 0
 MaxMin5 <- apply.yearly(Min5, FUN = "max")
@@ -79,7 +79,6 @@ Hour48 <- rollapply(ts_final, 2880, sum, na.rm = TRUE, align = c("center"))
 Hour48[is.na(Hour48)] <- 0
 MaxHour48 <- apply.yearly(Hour48, FUN = "max")
 
-
 # Convert the annual maxima for each time interval from 5 minutes to 48 hours to data frames
 MaxMin5 <- as.data.frame(MaxMin5)
 MaxMin15 <- as.data.frame(MaxMin15)
@@ -90,7 +89,6 @@ MaxHour6 <- as.data.frame(MaxHour6)
 MaxHour12 <- as.data.frame(MaxHour12)
 MaxHour24 <- as.data.frame(MaxHour24)
 MaxHour48 <- as.data.frame(MaxHour48)
-# MaxHour72 <- as.data.frame(MaxHour72) # Was giving wrong data, eg Depth72<Depth48 for some years
 
 rownames(MaxMin5) <- NULL
 rownames(MaxMin15) <- NULL
@@ -118,26 +116,10 @@ colnames(Maxima)[9] <- "24Hour"
 colnames(Maxima)[10] <- "48Hour"
 
 # Removing unnecessary data
-rm(MaxMin5)
-rm(MaxMin15)
-rm(MaxMin30)
-rm(MaxHour1)
-rm(MaxHour2)
-rm(MaxHour6)
-rm(MaxHour12)
-rm(MaxHour24)
-rm(MaxHour48)
-rm(Min5)
-rm(Min15)
-rm(Min30)
-rm(Hour1)
-rm(Hour2)
-rm(Hour6)
-rm(Hour12)
-rm(Hour24)
-rm(Hour48)
+rm(MaxMin5, MaxMin15, MaxMin30, MaxHour1, MaxHour2, MaxHou6, MaxHour12, MaxHour24, MaxHour48, +
+Min5, Min15, Min30, Hour1, Hour2, Hour6, Hour12, Hour24, Hour48, z.f, ts_full)
 
-# Statistical Analysis
+# Statistical Analysis based on Gumbel distribution
 StatAnal <- colMeans(Maxima[,-1], na.rm = FALSE, dims = 1)
 StatAnal <- data.frame(t(StatAnal))
 StatAnal[2,1] <- sd(Maxima$`5Min`)
@@ -264,12 +246,11 @@ colnames(IDF)[5] ="T100"
 colnames(IDF)[6] ="T200"
 colnames(IDF)[7] ="T500"
 
-# creation of table, that will be used after for plotting IDF curves
+# Creation of table, that will be used after for plotting IDF curves
 IDF$Duration <- c(1/12, .25, 0.5, 1, 2, 6, 12, 24, 48)
 IDF <- IDF[,c(8, 1:7)]
 
-#Plotiing the graph. Position of legeng determined by perfect position for exporting plot in
-#resolution 1500x500
+# Plotiing the graph. Position of legend determined by perfect position for exporting plot in resolution 1500x500
 IDF_graph <- 
   ggplot(IDF, aes(Duration)) + 
   geom_line(aes(y = T2, colour = "T2",), size = 1) + geom_point(aes(y = T2, colour = "T2"), size = 1.5) + 
