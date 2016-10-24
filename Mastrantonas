@@ -41,9 +41,8 @@ z.f["Depth"] <- z.f[1]
 z.f[1] <- NULL
 z.f[1] <- NULL
 ts_final <- xts(z.f$Depth, order.by = z.f$Date_Time, tzone = "UTC")
-test <- ts_final[1:500000]
 
-# Create cummulative time series for various time steps from 5 minutes to 48 hours and findind the annual maximum
+# Create cummulative time series for various time windows from 5 minutes to 48 hours and findind the annual maximum
 Min5 <- rollapply(ts_final, 5, sum, na.rm = TRUE, align = c("center"))
 Min5[is.na(Min5)] <- 0
 MaxMin5 <- apply.yearly(Min5, FUN = "max")
@@ -81,7 +80,7 @@ Hour48[is.na(Hour48)] <- 0
 MaxHour48 <- apply.yearly(Hour48, FUN = "max")
 
 
-# Convert the annual maxima for each time intervals from 5 minutes to 48 hours to data frames
+# Convert the annual maxima for each time interval from 5 minutes to 48 hours to data frames
 MaxMin5 <- as.data.frame(MaxMin5)
 MaxMin15 <- as.data.frame(MaxMin15)
 MaxMin30 <- as.data.frame(MaxMin30)
