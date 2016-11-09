@@ -4,7 +4,6 @@
 
 #Calling packages
 require(xts)
-require(zoo)
 library(lubridate)
 library(timeDate)
 library(extRemes)
