@@ -91,7 +91,6 @@ ggplot(output, aes(time, y = value, color = variable)) +
   xlab("Duration [hours]") +
   labs(title = "Intensity-Duration-Frequency Curve") +
   labs(color = "Return Periods")+
-  theme(panel.background = element_rect(fill = "white"))+
   theme(legend.background = element_rect(fill= "white", size=0.5, 
                                          linetype="solid", colour ="black")) 
 
