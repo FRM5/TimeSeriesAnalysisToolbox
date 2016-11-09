@@ -3,11 +3,11 @@
 
 library(lubridate) #Functions to work with date-times and time-spans
 library(xlsx) #Functions to read/write/format Excel
-library(xts) #Functions for Time Series(TS)
+library(xts) #Functions for Time Series(TS)deals with irregular time series
 library(highfrequency) #Functions for Time Series(TS)
-library(matrixStats) 
-library(ggplot2) #Functios for plotting
+library(matrixStats) #Functions that Apply to Rows and Columns of Matrices (and to Vectors)
 library(extRemes) #Functions for performing extreme value analysis
+library(ggplot2) #Functios for plotting
 
 # At first set working directory
 setwd("E:/Barcelona/FlashFloods/Practice/1 class")
