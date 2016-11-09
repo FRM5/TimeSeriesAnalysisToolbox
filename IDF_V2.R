@@ -6,7 +6,7 @@ library(plyr) # tool for splitting time series
 library(tidyr) # used to tidy up data
 
 # reading dataset 
-dat <- read.table("77.txt", header = TRUE)
+dat <- read.table("7.txt", header = TRUE)
 dat$DateTime<- as.POSIXct(paste(dat$date, dat$time), format="%m/%d/%Y %H:%M", tz = "UTC")
 dat$date = NULL
 dat$time = NULL
@@ -21,7 +21,7 @@ dframe <- data.frame(dmrg)
 
 # Making a 1 minute time series to create a regular time series
 from <- as.POSIXct("1994-02-08 01:09:00", tz = "UTC")
-to <- as.POSIXct("2000-12-24 20:36:00", tz = "UTC")
+to <- as.POSIXct("2016-08-30 14:30:00", tz = "UTC")
 ts.1min <- data.frame(seq(from, to, by = ("min")))
 colnames(ts.1min)[1] = "DateTime"
 d1min <- cbind.data.frame(ts.1min[1], dframe[1])
@@ -97,6 +97,11 @@ Int.tab$Yr5 <- mean1 + sd1*Kt[2]
 Int.tab$Yr10 <- mean1 + sd1*Kt[3]
 Int.tab$Yr50 <- mean1 + sd1*Kt[4]
 Int.tab$Yr100 <- mean1 + sd1*Kt[5]
+
+# Combining different duraration intensities on a single data frame 
+d_comp <- data.frame(d1mx$Group.1, d1mx$x, d2mx$x, d4mx$x, d6mx$x, d12mx$x, d24mx$x)
+colnames(d_comp) = c("Year", "1hr", "2hr", "4hr", "6hr", "12hr", "24hr")
+
 
 # Drawing IDF curves
 lables <- c("Yr2", "Yr5", "Yr10", "Yr50", "Yr100") 
