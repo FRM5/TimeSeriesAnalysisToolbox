@@ -6,6 +6,7 @@ library(xts)
 library(timeDate)
 library(extRemes)
 library(ggplot2)
+library(zoo)
 
 mydata=read.table("18.txt",header=TRUE,col.names=c("Date","Time"))
 mydata$dt <- as.POSIXct(paste(mydata$Date,mydata$Time),format = "%m/%d/%Y %H:%M")
@@ -72,30 +73,32 @@ ggplot(outrp, aes(t, y = value, color = variable)) +
   labs(title = "Intensity-Duration-Frequency Curve") +
   labs(color = "Return Periods")
 
-#Creating synthetic rainfall
+#Creating synthetic rainfall using alternating block method
 idfdata <- data.frame(t, outrp$`100`)
 colnames(idfdata) = c("Td","i")
 idffit <- nls(i ~ c/(f+Td^e), start=list(c=1, f=1, e=1), data=idfdata)
-fitdat <-predict(idffit, newdata = data.frame(Td=c(seq(1,24))))
-designR <- data.frame(c(seq(1,24)))
-designR[2] <- fitdat
-designR[3] <- designR[1] * designR[2]
-designR[4] <- c(designR[1,3],diff(as.matrix(designR[3])))
+fitdat <-predict(idffit, newdata = data.frame(Td=c(seq(1,24)))) #Predict for 1 to 24 hours
+desr <- data.frame(c(seq(1,24)))
+desr[2] <- fitdat
+desr[3] <- desr[1] * desr[2]
+desr[4] <- c(desr[1,3],diff(as.matrix(desr[3])))
 
-rain <- as.matrix(unlist(designR[4]))
-med <- max(rain)
-num <- which.max(rain)
-Q <- rain[-num]
+#Building hyetograph of alternating block
+P <- as.matrix(unlist(desr[4]))
+med <- max(P)
+num <- which.max(P)
+Pp <- P[-num]
 
-if (length(rain) %% 2 != 0){ #check if function is odd
-  tl <- sort(which(index(Q) %% 2 == 0),decreasing = TRUE)
-  hd <- sort(which(index(Q) %% 2 != 0),decreasing = FALSE)
+if (length(P) %% 2 != 0){ #check if function is odd
+  hd <- sort(which(index(Pp) %% 2 != 0),decreasing = FALSE)
+  tl <- sort(which(index(Pp) %% 2 == 0),decreasing = TRUE)
 } else {
-  hd <- sort(which(index(Q) %% 2 == 0),decreasing = TRUE)
-  tl <- sort(which(index(Q) %% 2 != 0),decreasing = FALSE)
+  hd <- sort(which(index(Pp) %% 2 == 0),decreasing = TRUE)
+  tl <- sort(which(index(Pp) %% 2 != 0),decreasing = FALSE)
 }
-designR[5] <- c(Q[hd],med,Q[tl])
-colnames(designR) = c("Duration","Intensity","Cum.Depth","Inc.Depth","Precipitation")
+desr[5] <- c(Pp[hd],med,Pp[tl])
+colnames(desr) = c("Duration","Intensity","Cum.Depth","Inc.Depth","Precipitation")
 
-e <- as.numeric(as.matrix(designR[5]))
-barplot(e, main="T100 - 24 hours Synthetic Precipitation", xlab="Time (hr)", ylab="Precipitation (mm)")
+e <- as.numeric(as.matrix(desr[5]))
+barplot(e, main="T100 - 24 hours Synthetic Precipitation", names.arg=desr$Duration,
+        xlab="Time (hour)", ylab="Precipitation (mm)")
