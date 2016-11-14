@@ -1,3 +1,4 @@
+# # min_30, hour_1, hour_3, hour_6, hour_12, hour_18, hour_24 values come from IDFcurve_final.R results. So, this code has to be run after IDFcurve
 # calculation of goodness of fit by Kolmogorov-Smirnov method for 30 minute duration
 # order yearly maximum rainfall intensity by decreasing
 fit_30 <- data.frame(min_30[order(min_30, decreasing = FALSE)])
