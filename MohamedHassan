@@ -1,0 +1,163 @@
+#loading Rainfall Data 
+
+mydata=read.table('14.txt',header=TRUE)
+
+#Identifying Source File Data Types
+
+mydata$datetime<- as.POSIXct(paste(mydata$date, mydata$time), format="%m/%d/%Y %H:%M", tz = "UTC")
+
+#adding value of the tipping point single record
+
+mydata$Depth<-0.1
+
+#summing all readings per minute
+
+mydata<-aggregate(mydata[,4], list(mydata$datetime), sum )
+
+#creating a sequence by minute dataset for the same period 
+
+Fromtime <-as.POSIXct("1994-09-27 16:16:00",tz = "UTC")
+Totime <-as.POSIXct("2001-01-28 08:04:00",tz = "UTC")
+Zerotimeseries=seq(Fromtime,Totime,"min")
+Zerotimeseriesframe=data.frame(Zerotimeseries)
+colnames(Zerotimeseriesframe) <- c("Datetime")
+Zerotimeseriesframe$Depth<-0
+colnames(mydata) <- c("Datetime","Depth")
+colnames(mydata)[2] <- "Rainfalldepth"
+
+#joining original Rainfall data file(with gaps) with the full duration new time series 
+
+FinalData <- data.frame(left_join(Zerotimeseriesframe,mydata))
+
+#calling a library/package
+
+require(dplyr)
+
+#creating final time series
+
+FinalData <- data.frame(left_join(Zerotimeseriesframe,mydata))
+FinalData[is.na(FinalData)]<- 0
+
+#calling a library/package
+
+require(zoo)
+mydata_ts <- zoo(FinalData$Rainfalldepth,FinalData$Datetime)
+
+
+#calling a library/package
+
+require(hydroTSM)
+
+#applying Moving Average on the Final processed data for different time windows
+
+FifteenMinutes<-ma(mydata_ts,15, FUN = sum)
+ThirtyMinutes<-ma(mydata_ts,30, FUN = sum)
+OneHour<-ma(mydata_ts,60, FUN = sum)
+TwoHour<-ma(mydata_ts,120, FUN = sum)
+SixHours<-ma(mydata_ts,360, FUN = sum)
+TwelveHours<-ma(mydata_ts,720, FUN = sum)
+TwentyfourHours<-ma(mydata_ts,1440, FUN = sum)
+
+
+#extending memory limit 
+
+memory.limit(size = 30000)
+
+#creating data frames with the MA Results
+
+D_30minutes<-as.data.frame(ThirtyMinutes)
+D_15minutes<-as.data.frame(FifteenMinutes)
+D_1hour<-as.data.frame(OneHour)
+D_2hours<-as.data.frame(TwoHour)
+D_6hours<-as.data.frame(SixHours)
+D_12hours<-as.data.frame(TwelveHours)
+D_24hours<-as.data.frame(TwentyfourHours)
+
+require(data.table)
+D_24Hours<-setDT(D_24hours, keep.rownames = TRUE)[]
+colnames(D_24Hours) <- c("Datetime","Depth")
+D_12Hours<-setDT(D_12hours, keep.rownames = TRUE)[]
+colnames(D_12Hours) <- c("Datetime","Depth")
+D_6Hours<-setDT(D_6hours, keep.rownames = TRUE)[]
+colnames(D_6Hours) <- c("Datetime","Depth")
+
+D_2Hours<-setDT(D_2hours, keep.rownames = TRUE)[]
+colnames(D_2Hours) <- c("Datetime","Depth")
+D_1Hour<-setDT(D_1hour, keep.rownames = TRUE)[]
+colnames(D_1Hour) <- c("Datetime","Depth")
+D_30Minutes<-setDT(D_30minutes, keep.rownames = TRUE)[]
+colnames(D_30Minutes) <- c("Datetime","Depth")
+D_15Minutes<-setDT(D_15minutes, keep.rownames = TRUE)[]
+colnames(D_15Minutes) <- c("Datetime","Depth")
+D_15Minutes$Datetime<- as.POSIXct(D_15Minutes$Datetime, format="%Y", tz = "UTC")
+D_30Minutes$Datetime<- as.POSIXct(D_30Minutes$Datetime, format="%Y", tz = "UTC")
+D_1Hour$Datetime<- as.POSIXct(D_1Hour$Datetime, format="%Y", tz = "UTC")
+D_2Hours$Datetime<- as.POSIXct(D_2Hours$Datetime, format="%Y", tz = "UTC")
+D_6Hours$Datetime<- as.POSIXct(D_6Hours$Datetime, format="%Y", tz = "UTC")
+D_12Hours$Datetime<- as.POSIXct(D_12Hours$Datetime, format="%Y", tz = "UTC")
+D_24Hours$Datetime<- as.POSIXct(D_24Hours$Datetime, format="%Y", tz = "UTC")
+
+#calculating the maximum Yearly for different duration 
+
+Max_Year_12H<-aggregate(D_12Hours$Depth,list(D_12Hours$Datetime),FUN= max )
+Max_Year_24H<-aggregate(D_24Hours$Depth,list(D_24Hours$Datetime),FUN= max )
+
+Max_Year_6H<-aggregate(D_6Hours$Depth,list(D_6Hours$Datetime),FUN= max )
+Max_Year_2H<-aggregate(D_2Hours$Depth,list(D_2Hours$Datetime),FUN= max )
+Max_Year_1H<-aggregate(D_1Hour$Depth,list(D_1Hour$Datetime),FUN= max )
+Max_Year_30M<-aggregate(D_30Minutes$Depth,list(D_30Minutes$Datetime),FUN= max )
+Max_Year_15M<-aggregate(D_15Minutes$Depth,list(D_15Minutes$Datetime),FUN= max )
+Total_MAx_yearly<-cbind.data.frame(Max_Year_15M$Group.1,Max_Year_15M$x/0.25,Max_Year_30M$x/0.5,Max_Year_1H$x/1,Max_Year_2H$x/2,Max_Year_6H$x/6,Max_Year_12H$x/12,Max_Year_24H$x/24)
+colnames(Total_MAx_yearly) <- c("Year","15M","30M","1H","2H","6H","12H","24H")
+
+#Creating Label Names for Different return periods
+
+R=data.frame(2,5,10,20,50,100,200,500,1000)
+
+#Calculating gumbel factor
+
+Kt=data.frame(-sqrt(6)/pi*((0.5772+log(log(R/(R-1))))))
+R<-array(2,5,10,20,50,100,200,500,1000)
+
+R<-c(2,5,10,20,50,100,200,500,1000)
+Kgumbel<-c(Kt=data.frame(-sqrt(6)/pi*((0.5772+log(log(R/(R-1)))))))
+Coff<-cbind.data.frame(R,Kgumbel)
+
+#calculating gumbel distribution values for different durations 
+
+Dur15<-c(mean(Total_MAx_yearly$`15M`)+Coff$Kt.X.sqrt.6..pi.....0.5772...log.log.R..R...1.....*sd(Total_MAx_yearly$`15M`))
+Dur30<-c(mean(Total_MAx_yearly$`30M`)+Coff$Kt.X.sqrt.6..pi.....0.5772...log.log.R..R...1.....*sd(Total_MAx_yearly$`30M`))
+Dur1H<-c(mean(Total_MAx_yearly$`1H`)+Coff$Kt.X.sqrt.6..pi.....0.5772...log.log.R..R...1.....*sd(Total_MAx_yearly$`1H`))
+Dur2H<-c(mean(Total_MAx_yearly$`2H`)+Coff$Kt.X.sqrt.6..pi.....0.5772...log.log.R..R...1.....*sd(Total_MAx_yearly$`2H`))
+Dur6H<-c(mean(Total_MAx_yearly$`6H`)+Coff$Kt.X.sqrt.6..pi.....0.5772...log.log.R..R...1.....*sd(Total_MAx_yearly$`6H`))
+Dur12H<-c(mean(Total_MAx_yearly$`12H`)+Coff$Kt.X.sqrt.6..pi.....0.5772...log.log.R..R...1.....*sd(Total_MAx_yearly$`12H`))
+Dur24H<-c(mean(Total_MAx_yearly$`24H`)+Coff$Kt.X.sqrt.6..pi.....0.5772...log.log.R..R...1.....*sd(Total_MAx_yearly$`24H`))
+
+#Creating the IDF Curve
+
+IDF<-rbind.data.frame(Dur15,Dur30,Dur1H,Dur2H,Dur6H,Dur12H,Dur24H)
+colnames(IDF) <- c("2Y","5Y","10Y","20Y","50Y","100Y","200Y","500Y","1000Y")
+Duration<-c("15M","30M","1H","2H","6H","12H","24H")
+IDF<-cbind(Duration,IDF)
+
+#Viewing IDF Table 
+
+View(IDF)
+
+#Plotting the IDF
+ReturnPeriodsLables<- c("Yr2", "Yr5", "Yr10",  "Yr20","Yr50", "Yr100","Yr200","Yr500") 
+plot(IDF$`2Y`, type = "line", col = "red",xlab="Duration", ylab="Intensity")
+title(main="Intensity Duration Curve")
+lines(IDF$`10Y`, type = "line", col = "green")
+lines(IDF$`5Y`, type = "line", col = "blue")
+lines(IDF$`20Y`, type = "line", col = "orange")
+lines(IDF$`50Y`, type = "line", col = "brown")
+lines(IDF$`100Y`, type = "line", col = "yellow")
+lines(IDF$`200Y`, type = "line", col = "pink")
+lines(IDF$`500Y`, type = "line", col = "purple")
+legend("topright", title = "Legend",  ReturnPeriodsLables, lwd = 1, cex = 0.75, col = c("red", "blue","green","orange", "brown","yellow","pink","purple"))
+  
+
+#intensity= mm/ duration by hour
+#mena , standrd diviation for each duration
+#K gumbel value from return periods suggested
